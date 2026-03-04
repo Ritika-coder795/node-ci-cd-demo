@@ -3,7 +3,7 @@ pipeline {
     agent any
 
     tools {
-        nodejs 'node'
+        nodejs 'node'  // Ensure Node.js is installed in Jenkins global tools
     }
 
     environment {
@@ -34,27 +34,30 @@ pipeline {
             }
         }
 
-       stage('Trivy File System Scan') {
-    steps {
-        timeout(time: 5, unit: 'MINUTES') {
-            sh 'docker run --rm -v $PWD:/project -w /project aquasec/trivy:latest fs --severity HIGH,CRITICAL .'
+        stage('Trivy File System Scan') {
+            steps {
+                timeout(time: 5, unit: 'MINUTES') {
+                    // Fail build if HIGH/CRITICAL vulnerabilities found
+                    sh '''
+                    docker run --rm -v $PWD:/project -w /project aquasec/trivy:latest fs --severity HIGH,CRITICAL --exit-code 1 .
+                    '''
+                }
+            }
         }
-    }
-}
 
-       stage('SonarQube Analysis') {
-    steps {
-        withCredentials([string(credentialsId: 'sonar-node-ci-cd-demo-token', variable: 'SONAR_TOKEN')]) {
-            sh '''
-            sonar-scanner \
-              -Dsonar.projectKey=node-ci-cd-demo \
-              -Dsonar.sources=. \
-              -Dsonar.host.url=$SONAR_URL \
-              -Dsonar.login=$SONAR_TOKEN
-            '''
+        stage('SonarQube Analysis') {
+            steps {
+                withCredentials([string(credentialsId: 'sonar-node-ci-cd-demo-token', variable: 'SONAR_TOKEN')]) {
+                    sh '''
+                    sonar-scanner \
+                      -Dsonar.projectKey=node-ci-cd-demo \
+                      -Dsonar.sources=. \
+                      -Dsonar.host.url=$SONAR_URL \
+                      -Dsonar.login=$SONAR_TOKEN
+                    '''
+                }
+            }
         }
-    }
-}
 
         stage('Quality Gate') {
             steps {
@@ -66,16 +69,20 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t $DOCKER_IMAGE:$DOCKER_TAG .'
+                timeout(time: 5, unit: 'MINUTES') {
+                    sh 'docker build -t $DOCKER_IMAGE:$DOCKER_TAG .'
+                }
             }
         }
 
         stage('Trivy Image Scan') {
             steps {
-                // Dockerized image scan
-                sh '''
-                docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:latest image --severity HIGH,CRITICAL $DOCKER_IMAGE:$DOCKER_TAG
-                '''
+                timeout(time: 5, unit: 'MINUTES') {
+                    // Fail build if HIGH/CRITICAL vulnerabilities found
+                    sh '''
+                    docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:latest image --severity HIGH,CRITICAL --exit-code 1 $DOCKER_IMAGE:$DOCKER_TAG
+                    '''
+                }
             }
         }
 
@@ -93,7 +100,9 @@ pipeline {
 
         stage('Push Docker Image') {
             steps {
-                sh 'docker push $DOCKER_IMAGE:$DOCKER_TAG'
+                timeout(time: 5, unit: 'MINUTES') {
+                    sh 'docker push $DOCKER_IMAGE:$DOCKER_TAG'
+                }
             }
         }
     }
@@ -104,6 +113,10 @@ pipeline {
         }
         failure {
             echo 'Pipeline Failed ❌'
+        }
+        always {
+            // Optional: clean up dangling Docker images to save space
+            sh 'docker image prune -f || true'
         }
     }
 }
