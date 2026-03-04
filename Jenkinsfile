@@ -9,7 +9,7 @@ pipeline {
     environment {
         DOCKER_IMAGE = "mritika/node-ci-cd-demo"
         DOCKER_TAG = "latest"
-        SONAR_URL = "http:172.31.16.70//:9000"   // Replace with your Sonar private IP
+        SONAR_URL = "http://172.31.16.70:9000"   // Replace with your Sonar private IP
     }
 
     stages {
