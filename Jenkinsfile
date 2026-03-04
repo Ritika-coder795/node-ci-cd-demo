@@ -1,3 +1,4 @@
+
 pipeline {
     agent any
 
@@ -8,7 +9,7 @@ pipeline {
     environment {
         DOCKER_IMAGE = "mritika/node-ci-cd-demo"
         DOCKER_TAG = "latest"
-        SONAR_URL = "http://172.31.16.70:9000"   // 🔁 Replace with your Sonar private IP
+        SONAR_URL = "http:172.31.16.70//:9000"   // Replace with your Sonar private IP
     }
 
     stages {
@@ -32,18 +33,13 @@ pipeline {
                 sh 'npm test'
             }
         }
-        stage('Trivy File System Scan') {
-    steps {
-        // Run Trivy FS scan via Docker to avoid Snap confinement issues
-        sh '''
-        docker run --rm -v $PWD:/project -w /project aquasec/trivy:latest fs --severity HIGH,CRITICAL .
-        '''
-    }
-}
 
         stage('Trivy File System Scan') {
             steps {
-                sh 'trivy fs --severity HIGH,CRITICAL .'
+                // Use Docker to avoid Snap confinement issue
+                sh '''
+                docker run --rm -v $PWD:/project -w /project aquasec/trivy:latest fs --severity HIGH,CRITICAL .
+                '''
             }
         }
 
@@ -60,13 +56,14 @@ pipeline {
                 }
             }
         }
+
         stage('Quality Gate') {
-    steps {
-        timeout(time: 2, unit: 'MINUTES') {
-            waitForQualityGate abortPipeline: true
+            steps {
+                timeout(time: 2, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
         }
-    }
-}
 
         stage('Build Docker Image') {
             steps {
@@ -76,7 +73,10 @@ pipeline {
 
         stage('Trivy Image Scan') {
             steps {
-                sh 'trivy image --severity HIGH,CRITICAL $DOCKER_IMAGE:$DOCKER_TAG'
+                // Dockerized image scan
+                sh '''
+                docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:latest image --severity HIGH,CRITICAL $DOCKER_IMAGE:$DOCKER_TAG
+                '''
             }
         }
 
