@@ -43,19 +43,19 @@ pipeline {
             }
         }
 
-        stage('SonarQube Analysis') {
-            steps {
-                withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
-                    sh '''
-                    sonar-scanner \
-                      -Dsonar.projectKey=node-ci-cd-demo \
-                      -Dsonar.sources=. \
-                      -Dsonar.host.url=$SONAR_URL \
-                      -Dsonar.login=$SONAR_TOKEN
-                    '''
-                }
-            }
+       stage('SonarQube Analysis') {
+    steps {
+        withCredentials([string(credentialsId: 'sonar-node-ci-cd-demo-token', variable: 'SONAR_TOKEN')]) {
+            sh '''
+            sonar-scanner \
+              -Dsonar.projectKey=node-ci-cd-demo \
+              -Dsonar.sources=. \
+              -Dsonar.host.url=$SONAR_URL \
+              -Dsonar.login=$SONAR_TOKEN
+            '''
         }
+    }
+}
 
         stage('Quality Gate') {
             steps {
