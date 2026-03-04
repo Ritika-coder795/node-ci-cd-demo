@@ -32,6 +32,14 @@ pipeline {
                 sh 'npm test'
             }
         }
+        stage('Trivy File System Scan') {
+    steps {
+        // Run Trivy FS scan via Docker to avoid Snap confinement issues
+        sh '''
+        docker run --rm -v $PWD:/project -w /project aquasec/trivy:latest fs --severity HIGH,CRITICAL .
+        '''
+    }
+}
 
         stage('Trivy File System Scan') {
             steps {
