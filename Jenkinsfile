@@ -34,14 +34,13 @@ pipeline {
             }
         }
 
-        stage('Trivy File System Scan') {
-            steps {
-                // Use Docker to avoid Snap confinement issue
-                sh '''
-                docker run --rm -v $PWD:/project -w /project aquasec/trivy:latest fs --severity HIGH,CRITICAL .
-                '''
-            }
+       stage('Trivy File System Scan') {
+    steps {
+        timeout(time: 5, unit: 'MINUTES') {
+            sh 'docker run --rm -v $PWD:/project -w /project aquasec/trivy:latest fs --severity HIGH,CRITICAL .'
         }
+    }
+}
 
        stage('SonarQube Analysis') {
     steps {
