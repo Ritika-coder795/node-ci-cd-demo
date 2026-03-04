@@ -47,7 +47,19 @@ pipeline {
 
         stage('SonarQube Analysis') {
             steps {
-                withCredentials([string(credentialsId: 'sonar-node-ci-cd-demo-token', variable: 'SONAR_TOKEN')]) {
+                withCredentials([string(credentialsId: 'stage('SonarQube Analysis') {
+    steps {
+        withCredentials([string(credentialsId: 'sonar-node-ci-cd-demo', variable: 'SONAR_TOKEN')]) {
+            sh '''
+            docker run --rm \
+              -e SONAR_HOST_URL="$SONAR_URL" \
+              -e SONAR_LOGIN="$SONAR_TOKEN" \
+              -v $(pwd):/usr/src \
+              sonarsource/sonar-scanner-cli
+            '''
+        }
+    }
+}', variable: 'SONAR_TOKEN')]) {
                     sh '''
                     sonar-scanner \
                       -Dsonar.projectKey=node-ci-cd-demo \
