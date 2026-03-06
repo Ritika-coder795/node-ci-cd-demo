@@ -8,7 +8,7 @@ pipeline {
     environment {
         DOCKER_IMAGE = "mritika/node-ci-cd-demo"
         DOCKER_TAG = "latest"
-        SONAR_URL = "http://http://107.20.60.100:9000"   // Replace with your Sonar private IP
+        SONAR_URL = "http://107.20.60.100:9000"   // Fixed URL
     }
 
     stages {
@@ -29,7 +29,7 @@ pipeline {
 
         stage('Unit Tests') {
             steps {
-                sh 'npm test'
+                sh 'npm test -- --coverage' // Generate coverage for Sonar
             }
         }
 
@@ -43,19 +43,22 @@ pipeline {
             }
         }
 
-       stage('Sonar Scan') {
-    steps {
-        withCredentials([string(credentialsId: 'Sonar_Tken', variable: 'SONAR_TOKEN')]) {
-            sh """
-            docker run --rm \
-              -e SONAR_HOST_URL="$SONAR_URL" \
-              -e SONAR_LOGIN="$SONAR_TOKEN" \
-              -v \$(pwd):/usr/src \
-              sonarsource/sonar-scanner-cli
-            """
+        stage('Sonar Scan') {
+            steps {
+                withCredentials([string(credentialsId: 'Sonar_Tken', variable: 'SONAR_TOKEN')]) {
+                    sh """
+                    docker run --rm \
+                      -e SONAR_HOST_URL="$SONAR_URL" \
+                      -e SONAR_LOGIN="$SONAR_TOKEN" \
+                      -v \$(pwd):/usr/src \
+                      sonarsource/sonar-scanner-cli \
+                      -Dsonar.projectKey=node-ci-cd-demo \
+                      -Dsonar.sources=. \
+                      -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+                    """
+                }
+            }
         }
-    }
-}
 
         stage('Quality Gate') {
             steps {
