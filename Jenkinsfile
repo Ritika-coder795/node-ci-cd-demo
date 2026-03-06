@@ -14,7 +14,6 @@ pipeline {
 
     options {
         timeout(time: 30, unit: 'MINUTES')  // Max runtime for the whole pipeline
-        //ansiColor('xterm')                  // Colored output
     }
 
     stages {
