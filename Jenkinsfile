@@ -2,14 +2,14 @@ pipeline {
     agent any
 
     tools {
-        nodejs 'node'            // Node.js installed in Jenkins global tools
-        sonar 'SonarScanner'     // SonarScanner installed in Jenkins global tools squ_d56e704152da9ee77286036cc832976d805e1c73
+        nodejs 'node'                                      // Node.js installed in Jenkins global tools
+        hudson.plugins.sonar.SonarRunnerInstallation 'SonarScanner'  // Correct SonarScanner reference
     }
 
     environment {
         DOCKER_IMAGE = "mritika/node-ci-cd-demo"
-        DOCKER_TAG = "latest"
-        SONAR_URL = "http://107.20.60.100:9000"
+        DOCKER_TAG   = "latest"
+        SONAR_URL    = "http://107.20.60.100:9000"
     }
 
     stages {
