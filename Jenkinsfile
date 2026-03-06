@@ -2,8 +2,8 @@ pipeline {
     agent any
 
     tools {
-        nodejs 'node'                                      // Node.js installed in Jenkins global tools
-        hudson.plugins.sonar.SonarRunnerInstallation 'SonarScanner'  // Correct SonarScanner reference
+        nodejs 'node'  // Node.js installed in Jenkins global tools
+        // Remove sonar from here, call via sh instead
     }
 
     environment {
