@@ -2,13 +2,14 @@ pipeline {
     agent any
 
     tools {
-        nodejs 'node'  // Ensure Node.js is installed in Jenkins global tools squ_d56e704152da9ee77286036cc832976d805e1c73
+        nodejs 'node'            // Node.js installed in Jenkins global tools
+        sonar 'SonarScanner'     // SonarScanner installed in Jenkins global tools squ_d56e704152da9ee77286036cc832976d805e1c73
     }
 
     environment {
         DOCKER_IMAGE = "mritika/node-ci-cd-demo"
         DOCKER_TAG = "latest"
-        SONAR_URL = "http://107.20.60.100:9000"   // Fixed URL
+        SONAR_URL = "http://107.20.60.100:9000"
     }
 
     stages {
@@ -29,7 +30,7 @@ pipeline {
 
         stage('Unit Tests') {
             steps {
-                sh 'npm test -- --coverage' // Generate coverage for Sonar
+                sh 'npm test -- --coverage'  // Generate Jest coverage for Sonar
             }
         }
 
@@ -43,18 +44,17 @@ pipeline {
             }
         }
 
-        stage('Sonar Scan') {
+        stage('SonarQube Analysis') {
             steps {
                 withCredentials([string(credentialsId: 'Sonar_Tken', variable: 'SONAR_TOKEN')]) {
                     sh """
-                    docker run --rm \
-                      -e SONAR_HOST_URL="$SONAR_URL" \
-                      -e SONAR_LOGIN="$SONAR_TOKEN" \
-                      -v \$(pwd):/usr/src \
-                      sonarsource/sonar-scanner-cli \
+                    sonar-scanner \
                       -Dsonar.projectKey=node-ci-cd-demo \
                       -Dsonar.sources=. \
-                      -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+                      -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
+                      -Dsonar.host.url=$SONAR_URL \
+                      -Dsonar.login=$SONAR_TOKEN \
+                      -Dsonar.verbose=false 2>&1 | grep -E "ERROR|WARN"
                     """
                 }
             }
