@@ -3,7 +3,6 @@ pipeline {
 
     tools {
         nodejs 'node'  // Node.js installed in Jenkins global tools
-        // SonarScanner invoked directly via sh
     }
 
     environment {
@@ -14,6 +13,7 @@ pipeline {
 
     options {
         timeout(time: 30, unit: 'MINUTES')  // Max runtime for the whole pipeline
+        timestamps()  // Adds timestamps in console logs
     }
 
     stages {
@@ -32,21 +32,24 @@ pipeline {
             }
         }
 
-        stage('Unit Tests') {
-            steps {
-                sh '''
-                npm test -- --coverage || { echo "Unit tests failed"; exit 1; }
-                '''
-            }
-        }
-
-        stage('Trivy File System Scan') {
-            steps {
-                timeout(time: 5, unit: 'MINUTES') {
-                    sh '''
-                    docker run --rm -v $PWD:/project -w /project aquasec/trivy:latest fs \
-                    --severity HIGH,CRITICAL --exit-code 1 . || { echo "Trivy FS Scan failed"; exit 1; }
-                    '''
+        stage('Unit Tests & FS Scan') {
+            parallel {
+                stage('Unit Tests') {
+                    steps {
+                        timeout(time: 10, unit: 'MINUTES') {
+                            sh 'npm test -- --coverage || { echo "Unit tests failed"; exit 1; }'
+                        }
+                    }
+                }
+                stage('Trivy File System Scan') {
+                    steps {
+                        timeout(time: 10, unit: 'MINUTES') {
+                            sh '''
+                            docker run --rm -v $PWD:/project -w /project aquasec/trivy:latest fs \
+                            --severity HIGH,CRITICAL --exit-code 1 . || { echo "Trivy FS Scan failed"; exit 1; }
+                            '''
+                        }
+                    }
                 }
             }
         }
@@ -54,15 +57,17 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 withCredentials([string(credentialsId: 'Sonar_Tken', variable: 'SONAR_TOKEN')]) {
-                    sh '''
-                    sonar-scanner \
-                      -Dsonar.projectKey=node-ci-cd-demo \
-                      -Dsonar.sources=. \
-                      -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
-                      -Dsonar.host.url=$SONAR_URL \
-                      -Dsonar.login=$SONAR_TOKEN \
-                      -Dsonar.verbose=false || { echo "SonarScanner failed"; exit 1; }
-                    '''
+                    timeout(time: 5, unit: 'MINUTES') {
+                        sh '''
+                        sonar-scanner \
+                          -Dsonar.projectKey=node-ci-cd-demo \
+                          -Dsonar.sources=. \
+                          -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
+                          -Dsonar.host.url=$SONAR_URL \
+                          -Dsonar.login=$SONAR_TOKEN \
+                          -Dsonar.verbose=false || { echo "SonarScanner failed"; exit 1; }
+                        '''
+                    }
                 }
             }
         }
@@ -75,23 +80,13 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Docker Build & Scan') {
             when {
                 expression { currentBuild.currentResult == 'SUCCESS' }
             }
             steps {
-                timeout(time: 5, unit: 'MINUTES') {
+                timeout(time: 10, unit: 'MINUTES') {
                     sh 'docker build -t $DOCKER_IMAGE:$DOCKER_TAG .'
-                }
-            }
-        }
-
-        stage('Trivy Image Scan') {
-            when {
-                expression { currentBuild.currentResult == 'SUCCESS' }
-            }
-            steps {
-                timeout(time: 5, unit: 'MINUTES') {
                     sh '''
                     docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:latest image \
                     --severity HIGH,CRITICAL --exit-code 1 $DOCKER_IMAGE:$DOCKER_TAG || { echo "Trivy Image Scan failed"; exit 1; }
@@ -100,7 +95,7 @@ pipeline {
             }
         }
 
-        stage('Docker Login & Push') {
+        stage('Docker Push') {
             when {
                 expression { currentBuild.currentResult == 'SUCCESS' }
             }
@@ -110,10 +105,12 @@ pipeline {
                     usernameVariable: 'DOCKER_USER',
                     passwordVariable: 'DOCKER_PASS'
                 )]) {
-                    sh '''
-                    echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin || { echo "Docker login failed"; exit 1; }
-                    docker push $DOCKER_IMAGE:$DOCKER_TAG || { echo "Docker push failed"; exit 1; }
-                    '''
+                    timeout(time: 5, unit: 'MINUTES') {
+                        sh '''
+                        echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin || { echo "Docker login failed"; exit 1; }
+                        docker push $DOCKER_IMAGE:$DOCKER_TAG || { echo "Docker push failed"; exit 1; }
+                        '''
+                    }
                 }
             }
         }
