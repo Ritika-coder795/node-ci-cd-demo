@@ -7,7 +7,7 @@ pipeline {
 
     environment {
         DOCKER_IMAGE = "mritika/node-ci-cd-demo"
-        DOCKER_TAG   = "latest"
+        DOCKER_TAG   = "${BUILD_NUMBER}"   // Use build number for versioning
         SONAR_URL    = "http://107.20.60.100:9000"
     }
 
@@ -32,6 +32,18 @@ pipeline {
             }
         }
 
+        stage('Lint') {
+            steps {
+                sh 'npm run lint || { echo "Lint failed"; exit 1; }'
+            }
+        }
+
+        stage('Dependency Audit') {
+            steps {
+                sh 'npm audit --audit-level=high || { echo "High severity vulnerabilities found"; exit 1; }'
+            }
+        }
+
         stage('Unit Tests & FS Scan') {
             parallel {
                 stage('Unit Tests') {
@@ -39,6 +51,7 @@ pipeline {
                         timeout(time: 10, unit: 'MINUTES') {
                             sh 'npm test -- --coverage || { echo "Unit tests failed"; exit 1; }'
                         }
+                        junit 'coverage/test-results/**/*.xml'  // Publish JUnit reports
                     }
                 }
                 stage('Trivy File System Scan') {
